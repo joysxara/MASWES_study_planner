@@ -1,0 +1,1919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WES 237C &amp; WES 268A Interactive Study Planner &amp; Verification Dashboard</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .drag-over {
+      border-color: #6366f1 !important;
+      background-color: rgba(99, 102, 241, 0.08) !important;
+      transform: scale(1.005);
+    }
+    .task-card {
+      transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+    }
+    .task-card:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px -4px rgba(15, 23, 42, 0.12);
+    }
+    .task-card.dragging {
+      opacity: 0.45;
+      transform: scale(0.98);
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f5f9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex flex-col">
+
+  <!-- Top Header -->
+  <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-30 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-inner">
+          <i data-lucide="cpu" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h1 class="text-base sm:text-lg font-bold tracking-tight">WES 237C &amp; WES 268A Study Planner</h1>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">Oct 26 – Nov 6, 2026</span>
+          </div>
+          <p class="text-xs text-slate-400">24h Early-Target Padding • Office Hours Front-Loaded (Wed/Thu 6–7 PM) • Drag &amp; Drop Rebalancing</p>
+        </div>
+      </div>
+
+      <!-- Global Controls -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <button id="toggleThuBtn" onclick="toggleHalfThursday()" class="text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+          <i data-lucide="calendar-clock" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span id="thuModeLabel">Half-Thu: Oct 29 (1.5h)</span>
+        </button>
+        <button onclick="openSyncModal()" class="text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition" title="Sync tasks and checkmarks across laptop, phone, and tablet">
+          <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
+          <span id="syncStatusLabel">Cloud Sync</span>
+        </button>
+        <button onclick="openAddTaskModal()" class="text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm transition">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+          <span>Add Task / Resource</span>
+        </button>
+        <button onclick="autoRebalance()" class="text-xs font-medium bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition" title="Automatically redistribute overloaded days into available slots before deadlines">
+          <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+          <span>Auto-Balance</span>
+        </button>
+        <button onclick="openResetModal()" class="text-xs font-medium bg-slate-800 hover:bg-rose-950/60 text-slate-300 hover:text-rose-300 border border-slate-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition" title="Reset to default front-loaded schedule">
+          <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+          <span class="hidden sm:inline">Reset</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-1 overflow-x-auto border-t border-slate-800/80 bg-slate-900/95">
+      <button onclick="switchTab('board')" id="tab-btn-board" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-indigo-400 text-white flex items-center gap-2 whitespace-nowrap transition">
+        <i data-lucide="layout-grid" class="w-4 h-4 text-indigo-400"></i>
+        <span>Drag &amp; Drop Study Board</span>
+      </button>
+      <button onclick="switchTab('checklist')" id="tab-btn-checklist" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap transition">
+        <i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i>
+        <span>Quick-Reference &amp; Verification Checklist</span>
+        <span id="checklistProgressBadge" class="ml-1 px-1.5 py-0.5 text-[11px] rounded-full bg-emerald-500/20 text-emerald-300 mono">0/28</span>
+      </button>
+      <button onclick="switchTab('officehours')" id="tab-btn-officehours" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap transition">
+        <i data-lucide="users" class="w-4 h-4 text-amber-400"></i>
+        <span>Office Hours Prep (Wed &amp; Thu 6–7 PM)</span>
+      </button>
+      <button onclick="switchTab('readings')" id="tab-btn-readings" class="tab-btn px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap transition">
+        <i data-lucide="book-open" class="w-4 h-4 text-sky-400"></i>
+        <span>Textbooks &amp; Supplemental Links</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- KPI Summary Strip -->
+  <section class="bg-white border-b border-slate-200 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <!-- KPI 1: WES 237C Countdown & Progress -->
+      <div class="p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-indigo-600"></span>
+            <span class="text-xs font-bold uppercase tracking-wider text-indigo-900">WES 237C Project 3 (DFT)</span>
+          </div>
+          <p class="text-xs text-slate-600 mt-0.5">24h Early Target: <strong class="text-indigo-700">Wed, Nov 4 (23:59)</strong></p>
+          <p class="text-[11px] text-slate-500">Official Due: Thu, Nov 5 (23:59) • OH: Wed 6–7 PM</p>
+        </div>
+        <div class="text-right">
+          <div id="kpi237cPct" class="text-lg font-extrabold text-indigo-700 mono">0%</div>
+          <div id="kpi237cHrs" class="text-[11px] text-slate-500 mono">0.0 / 12.0h</div>
+        </div>
+      </div>
+
+      <!-- KPI 2: WES 268A Lab 2 & Prelab 3 -->
+      <div class="p-3 rounded-xl bg-teal-50/70 border border-teal-100 flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-teal-600"></span>
+            <span class="text-xs font-bold uppercase tracking-wider text-teal-900">WES 268A Lab 2 &amp; Prelab 3</span>
+          </div>
+          <p class="text-xs text-slate-600 mt-0.5">24h Early Target: <strong class="text-teal-700">Thu, Nov 5 (23:59)</strong></p>
+          <p class="text-[11px] text-slate-500">Official Due: Fri, Nov 6 (23:59) • OH: Thu 6–7 PM</p>
+        </div>
+        <div class="text-right">
+          <div id="kpi268aPct" class="text-lg font-extrabold text-teal-700 mono">0%</div>
+          <div id="kpi268aHrs" class="text-[11px] text-slate-500 mono">0.0 / 19.5h</div>
+        </div>
+      </div>
+
+      <!-- KPI 3: Total Scheduled vs Capacity -->
+      <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Study Capacity Budget</span>
+          <p class="text-xs text-slate-600 mt-0.5">Active Study: <strong id="kpiTotalScheduled" class="mono text-slate-900">31.5h</strong> / <span id="kpiTotalCap" class="mono">31.5h</span></p>
+          <p class="text-[11px] text-emerald-700 font-medium">+ 3.0h Pure Buffer on Fri, Nov 6</p>
+        </div>
+        <div class="text-right">
+          <div id="kpiOverloadBadge" class="px-2 py-1 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-800">Balanced</div>
+        </div>
+      </div>
+
+      <!-- KPI 4: Lunch Reading & OH Readiness -->
+      <div class="p-3 rounded-xl bg-amber-50/70 border border-amber-100 flex items-center justify-between">
+        <div>
+          <span class="text-xs font-bold uppercase tracking-wider text-amber-900">Lunch Readings &amp; OH</span>
+          <p class="text-xs text-slate-600 mt-0.5">Tue/Thu 30m Lunch: <strong id="kpiLunchCount" class="mono text-amber-800">0/4</strong> done</p>
+          <p class="text-[11px] text-slate-500">4 Office Hour Blocks (Wed/Thu 6–7 PM)</p>
+        </div>
+        <div class="text-right">
+          <div id="kpiCompletedTasks" class="text-lg font-extrabold text-amber-700 mono">0/18</div>
+          <div class="text-[11px] text-slate-500">Tasks Done</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Workspace Container -->
+  <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 py-5 flex-1">
+
+    <!-- TAB 1: DRAG & DROP STUDY BOARD -->
+    <div id="tab-board" class="space-y-4">
+      <!-- Filter & Instructions Bar -->
+      <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-1.5 flex-wrap">
+          <span class="text-xs font-semibold text-slate-500 mr-1">Filter:</span>
+          <button onclick="setCourseFilter('ALL')" id="filter-ALL" class="filter-chip px-3 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white transition">All Tasks</button>
+          <button onclick="setCourseFilter('WES 237C')" id="filter-WES 237C" class="filter-chip px-3 py-1 rounded-lg text-xs font-medium bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition">WES 237C (FPGA/DFT)</button>
+          <button onclick="setCourseFilter('WES 268A')" id="filter-WES 268A" class="filter-chip px-3 py-1 rounded-lg text-xs font-medium bg-teal-50 text-teal-700 hover:bg-teal-100 transition">WES 268A (Digital Comm)</button>
+          <button onclick="setCourseFilter('OH')" id="filter-OH" class="filter-chip px-3 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-800 hover:bg-amber-100 transition">Office Hours (6–7 PM)</button>
+          <button onclick="setCourseFilter('LUNCH')" id="filter-LUNCH" class="filter-chip px-3 py-1 rounded-lg text-xs font-medium bg-sky-50 text-sky-800 hover:bg-sky-100 transition">30m Lunch Readings</button>
+        </div>
+
+        <div class="flex items-center gap-2 text-xs text-slate-500">
+          <i data-lucide="move" class="w-3.5 h-3.5 text-indigo-500"></i>
+          <span>Drag cards between days, or use <strong class="text-slate-700">◀ / ▶</strong> &amp; the day dropdown on any card to adjust workload.</span>
+        </div>
+      </div>
+
+      <!-- Week 1 & Week 2 Grid -->
+      <div id="daysGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- TAB 2: QUICK-REFERENCE & VERIFICATION CHECKLIST -->
+    <div id="tab-checklist" class="hidden space-y-6">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Submission Quick-Reference, Formulas &amp; Verification Checklist</h2>
+          <p class="text-xs text-slate-500">Check off each item as you verify your equations, Vivado/Vitis HLS synthesis reports, Lab 2 handwritten notes, and Prelab 3 MATLAB plots.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="checkAllChecklist(false)" class="text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 transition">Uncheck All</button>
+          <button onclick="copyChecklistSummary()" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 transition">
+            <i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i>
+            <span>Copy Progress Summary</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5" id="checklistContainer">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- TAB 3: OFFICE HOURS PREP & AGENDAS -->
+    <div id="tab-officehours" class="hidden space-y-5">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <h2 class="text-base font-bold text-slate-900">Office Hours Strategy &amp; Live Question Scratchpad</h2>
+        <p class="text-xs text-slate-500 mt-0.5">Your homework, prelab, and lab tasks are front-loaded onto Tuesday &amp; Wednesday so you walk into both 6:00–7:00 PM Office Hours with concrete results and questions.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5" id="ohContainer">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- TAB 4: TEXTBOOKS, READINGS & SUPPLEMENTAL LINKS -->
+    <div id="tab-readings" class="hidden space-y-5">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Course Textbooks, Exact Page Map &amp; Supplemental Papers</h2>
+          <p class="text-xs text-slate-500">Includes both printed textbook page numbers and PDF page numbers for your uploaded files, plus direct links to the Prelab 3 supplemental IEEE papers.</p>
+        </div>
+        <button onclick="openAddTaskModal('LUNCH')" class="text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition">
+          <i data-lucide="bookmark-plus" class="w-3.5 h-3.5"></i>
+          <span>Add Supplemental Reading Task</span>
+        </button>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-100/80 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                <th class="py-3 px-4">Course &amp; Topic</th>
+                <th class="py-3 px-4">Source / Textbook</th>
+                <th class="py-3 px-4">Sections &amp; Exact Pages</th>
+                <th class="py-3 px-4">Scheduled Slot</th>
+                <th class="py-3 px-4">Key Concepts &amp; Direct Link</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-200 text-xs" id="readingsTableBody">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Add / Edit Task Modal -->
+  <div id="taskModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <h3 id="modalTitle" class="text-base font-bold text-slate-900">Add Study Task or Supplemental Resource</h3>
+        <button onclick="closeTaskModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="taskForm" onsubmit="saveTaskFromModal(event)" class="space-y-3">
+        <input type="hidden" id="modalTaskId" value="" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Course</label>
+            <select id="modalCourse" class="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="WES 237C">WES 237C (Hardware / DFT)</option>
+              <option value="WES 268A">WES 268A (Digital Comm I)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Task Category</label>
+            <select id="modalCategory" class="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="CODE">Coding / HLS / MATLAB</option>
+              <option value="WRITEUP">Lab Report / Theory Derivation</option>
+              <option value="LUNCH">30m Lunch Reading / Supplemental</option>
+              <option value="OH">Office Hours (6–7 PM)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Assigned Day</label>
+            <select id="modalDay" class="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              <!-- Populated by JS -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Duration (Hours)</label>
+            <input type="number" id="modalHours" step="0.25" min="0.25" max="5" value="1.0" required class="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 mono" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Task Title</label>
+          <input type="text" id="modalTaskTitle" placeholder="e.g., Read Timing Recovery Tutorial PDF (Notes_Papers)" required class="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Details, Equations, or Page Numbers</label>
+          <textarea id="modalTaskDesc" rows="3" placeholder="Specific sub-steps, textbook pages, or formulas to verify..." class="w-full text-xs rounded-lg border border-slate-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <button type="button" onclick="closeTaskModal()" class="text-xs font-medium px-3.5 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100">Cancel</button>
+          <button type="submit" class="text-xs font-semibold px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm">Save Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Reset Confirmation Modal -->
+  <div id="resetModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+          <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+        </div>
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Reset Study Planner to Default?</h3>
+          <p class="text-xs text-slate-500 mt-0.5">This restores the original front-loaded Office Hours schedule and clears custom task moves.</p>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeResetModal()" class="text-xs font-medium px-3.5 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100">Cancel</button>
+        <button onclick="confirmResetAll()" class="text-xs font-semibold px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-white">Reset Schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-Device Cloud Sync Modal -->
+  <div id="syncModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-xl w-full p-5 shadow-2xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center">
+            <i data-lucide="cloud" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Multi-Device Cloud Sync</h3>
+            <p class="text-xs text-slate-500">Sync your moved tasks, checkmarks, and Office Hours notes across laptop, phone &amp; tablet</p>
+          </div>
+        </div>
+        <button onclick="closeSyncModal()" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Method 1: Live Cloud Endpoint Sync (npoint.io / Firebase / JSONBin) -->
+      <div class="p-3.5 rounded-xl bg-sky-50/70 border border-sky-200 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-sky-950">Option 1: Live Two-Way Cloud Sync URL (Recommended)</span>
+          <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-sky-200/70 text-sky-900">Auto-Syncs Changes</span>
+        </div>
+        <p class="text-[11px] text-slate-600 leading-relaxed">
+          Create a free JSON bin at <a href="https://www.npoint.io/" target="_blank" rel="noopener noreferrer" class="text-sky-700 font-semibold underline">npoint.io</a> (click <em>+ New</em>, type <code class="mono bg-white px-1 rounded">{}</code>, click <em>Save</em>, and copy the API URL <code class="mono bg-white px-1 rounded">https://api.npoint.io/...</code>) or use a Firebase Realtime DB URL (<code class="mono bg-white px-1 rounded">https://your-app.firebaseio.com/planner.json</code>). Paste the same URL on your laptop and phone:
+        </p>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <input type="url" id="cloudSyncUrlInput" placeholder="https://api.npoint.io/your-bin-id  or  https://...firebaseio.com/plan.json" class="flex-1 text-xs rounded-lg border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 mono" />
+          <input type="password" id="cloudSyncKeyInput" placeholder="Optional API Key (JSONBin)" class="sm:w-44 text-xs rounded-lg border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-sky-500 mono" />
+        </div>
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+          <div class="flex items-center gap-2">
+            <button type="button" onclick="saveCloudConfigAndPush()" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white transition">
+              Save URL &amp; Push to Cloud
+            </button>
+            <button type="button" onclick="pullFromCloud(false)" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-sky-800 border border-sky-300 transition">
+              Pull Latest from Cloud
+            </button>
+          </div>
+          <span id="lastSyncTimestamp" class="text-[11px] text-slate-500 mono">Not linked yet</span>
+        </div>
+      </div>
+
+      <!-- Method 2: Instant Sync Code / Shareable State String -->
+      <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-800">Option 2: Quick Copy-Paste Sync Code (No Account Needed)</span>
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="copySyncCode()" class="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white transition">Copy My Sync Code</button>
+            <button type="button" onclick="applySyncCode()" class="text-[11px] font-semibold px-2.5 py-1 rounded-md bg-slate-800 hover:bg-slate-700 text-white transition">Load Pasted Code</button>
+          </div>
+        </div>
+        <textarea id="syncCodeBox" rows="2" placeholder="Click 'Copy My Sync Code' to copy your board state, or paste a code from another device here and click 'Load Pasted Code'..." class="w-full text-[11px] mono rounded-lg border border-slate-300 p-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+      </div>
+
+      <!-- Method 3: JSON Backup File Export / Import -->
+      <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <span class="text-xs font-bold text-slate-800">Option 3: Backup File (.json)</span>
+          <p class="text-[11px] text-slate-500">Save or load a <code class="mono">.json</code> file in your Google Drive / iCloud Drive folder.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button type="button" onclick="exportStateJson()" class="text-xs font-medium px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700">Export .json</button>
+          <label class="text-xs font-medium px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 cursor-pointer">
+            Import .json
+            <input type="file" accept=".json,application/json" onchange="importStateJson(event)" class="hidden" />
+          </label>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end pt-1">
+        <button type="button" onclick="closeSyncModal()" class="text-xs font-medium px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="fixed bottom-4 right-4 z-50 hidden bg-slate-900 text-white text-xs font-medium px-4 py-2.5 rounded-xl shadow-lg border border-slate-700 flex items-center gap-2">
+    <i data-lucide="check-circle-2" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toastMsg">Saved</span>
+  </div>
+
+  <script>
+    // Safe localStorage wrapper
+    const STORAGE_KEY = 'wes237c_268a_planner_v2';
+    function loadStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    }
+    function saveStorage(data) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        // Ignore storage errors in restricted iframes
+      }
+    }
+
+    // Days Metadata (Oct 26 – Nov 6, 2026)
+    const BASE_DAYS = [
+      { id: '2026-10-26', label: 'Mon, Oct 26', short: 'Mon 10/26', isMonday: true, hasLunch: false, isThu: false, thuIndex: 0, baseEvening: 0.0, badge: 'No Mondays (Rest)', milestone: null },
+      { id: '2026-10-27', label: 'Tue, Oct 27', short: 'Tue 10/27', isMonday: false, hasLunch: true, isThu: false, thuIndex: 0, baseEvening: 3.0, badge: '30m Lunch + 3h Eve', milestone: 'Front-Load Before OH #1' },
+      { id: '2026-10-28', label: 'Wed, Oct 28', short: 'Wed 10/28', isMonday: false, hasLunch: false, isThu: false, thuIndex: 0, baseEvening: 3.0, badge: 'WES 237C OH 6–7 PM', milestone: '🏛️ WES 237C OH #1 (6–7 PM)' },
+      { id: '2026-10-29', label: 'Thu, Oct 29', short: 'Thu 10/29', isMonday: false, hasLunch: true, isThu: true, thuIndex: 1, baseEvening: 1.5, badge: '30m Lunch + Half-Thu', milestone: '🏛️ WES 268A OH #1 (6–7 PM)' },
+      { id: '2026-10-30', label: 'Fri, Oct 30', short: 'Fri 10/30', isMonday: false, hasLunch: false, isThu: false, thuIndex: 0, baseEvening: 3.0, badge: '3h Evening Focus', milestone: null },
+      { id: '2026-10-31', label: 'Sat, Oct 31', short: 'Sat 10/31', isMonday: false, hasLunch: false, isThu: false, thuIndex: 0, baseEvening: 5.0, badge: '5h Weekend Deep Work', milestone: 'Weekend Deep Work' },
+      { id: '2026-11-01', label: 'Sun, Nov 1', short: 'Sun 11/01', isMonday: false, hasLunch: false, isThu: false, thuIndex: 0, baseEvening: 5.0, badge: '5h Weekend Deep Work', milestone: 'Weekend Deep Work' },
+      { id: '2026-11-02', label: 'Mon, Nov 2', short: 'Mon 11/02', isMonday: true, hasLunch: false, isThu: false, thuIndex: 0, baseEvening: 0.0, badge: 'No Mondays (Rest)', milestone: null },
+      { id: '2026-11-03', label: 'Tue, Nov 3', short: 'Tue 11/03', isMonday: false, hasLunch: true, isThu: false, thuIndex: 0, baseEvening: 3.0, badge: '30m Lunch + 3h Eve', milestone: 'Pre-OH #2 Final Drafts' },
+      { id: '2026-11-04', label: 'Wed, Nov 4', short: 'Wed 11/04', isMonday: false, hasLunch: false, isThu: false, thuIndex: 0, baseEvening: 3.0, badge: 'WES 237C OH 6–7 PM', milestone: '🎯 24h Early Target: WES 237C DFT' },
+      { id: '2026-11-05', label: 'Thu, Nov 5', short: 'Thu 11/05', isMonday: false, hasLunch: true, isThu: true, thuIndex: 2, baseEvening: 3.0, badge: '30m Lunch + Full-Thu', milestone: '🎯 24h Early Target: WES 268A + Due: 237C' },
+      { id: '2026-11-06', label: 'Fri, Nov 6', short: 'Fri 11/06', isMonday: false, hasLunch: false, isThu: false, thuIndex: 0, baseEvening: 3.0, badge: '3h 24-Hr Buffer Window', milestone: '🛡️ 24h Buffer • Official Due: WES 268A' }
+    ];
+
+    // Default Front-Loaded Tasks
+    const DEFAULT_TASKS = [
+      {
+        id: 'L-1',
+        day: '2026-10-27',
+        code: 'L-1',
+        course: 'WES 237C',
+        category: 'LUNCH',
+        hours: 0.5,
+        title: 'Lunch Reading: PP4FPGAs Ch. 4 (Sec. 4.1–4.7)',
+        desc: 'Read pp. 79–100: Matrix-vector DFT formulation X = Wx, inner-loop pipelining II constraints, BRAM 2-port bottleneck, and coefficients256.h LUTs.',
+        done: false
+      },
+      {
+        id: 'T-01',
+        day: '2026-10-27',
+        code: 'T-01',
+        course: 'WES 237C',
+        category: 'CODE',
+        hours: 2.0,
+        title: 'Early Start: Project 3 dft256_baseline & Initial Pragma Trial',
+        desc: 'Implement dft256_baseline (verify PASS vs out.gold.dat), swap in cos/sin_coefficients_table (optimized1), and test #pragma HLS pipeline & array_partition + inspect dft1024 before Wed 6 PM OH.',
+        done: false
+      },
+      {
+        id: 'T-02',
+        day: '2026-10-27',
+        code: 'T-02',
+        course: 'WES 268A',
+        category: 'WRITEUP',
+        hours: 1.0,
+        title: 'Early Start: Lab 2 Math Audit & Prelab 3 Problem 1–4 Setup',
+        desc: 'Check Lab 2 Part 1 dBm-to-Watts bin sum (bin=50Hz), Part 3 PRBS delta_f=2.016kHz & null=63.087kHz, Part 4 eye zeta table; outline Prelab 3 Problems 1–4 before Thu OH.',
+        done: false
+      },
+      {
+        id: 'OH-1',
+        day: '2026-10-28',
+        code: 'OH-1',
+        course: 'WES 237C',
+        category: 'OH',
+        hours: 1.0,
+        title: 'WES 237C Office Hours #1 (6:00–7:00 PM)',
+        desc: 'Ask about floating-point accumulation II latency (loop interchange vs tree), cyclic/block array_partition factor for BRAM ports, and target cycles for dft1024_best.',
+        done: false
+      },
+      {
+        id: 'T-03',
+        day: '2026-10-28',
+        code: 'T-03',
+        course: 'WES 268A',
+        category: 'CODE',
+        hours: 2.0,
+        title: 'Early Start: Prelab 3 MATLAB Sims 1 & 2 Prototype + Prob 1–2 Trial',
+        desc: 'Run initial pass of Sim 1 (msg.mat matched filter & correlate.m peak detection) and Sim 2 (discrete PLL loop filter Kt, Ka & step response) + Prob 1–2 math so any bugs surface before Thu 6 PM OH.',
+        done: false
+      },
+      {
+        id: 'L-2',
+        day: '2026-10-29',
+        code: 'L-2',
+        course: 'WES 268A',
+        category: 'LUNCH',
+        hours: 0.5,
+        title: 'Lunch Reading: Papen Sec. 3.6, 4.3 & 5.2 (Matched Filter, Phase Noise, Gardner)',
+        desc: 'Read Papen pp. 92–96 (Eq. 3.6.14a), pp. 122–128 (Fig. 4.11a), and pp. 140–149 (ML Phase Eq. 5.2.2 & Gardner TED) + Gardner (1986) IEEE paper.',
+        done: false
+      },
+      {
+        id: 'OH-2',
+        day: '2026-10-29',
+        code: 'OH-2',
+        course: 'WES 268A',
+        category: 'OH',
+        hours: 1.0,
+        title: 'WES 268A Office Hours #1 (6:00–7:00 PM)',
+        desc: 'Verify Lab 2 Part 1 noise power integration & Part 4 eye zeta; confirm Prelab 3 Prob 1–4 setups, Sim 1 downsample offset n_opt & LSB-first ASCII decode, and Sim 2 0.5% pull-in cursors.',
+        done: false
+      },
+      {
+        id: 'T-04',
+        day: '2026-10-29',
+        code: 'T-04',
+        course: 'WES 268A',
+        category: 'CODE',
+        hours: 0.5,
+        title: 'Post-OH Immediate Lock-In (MATLAB & Derivations)',
+        desc: 'Apply TA/instructor feedback immediately to lock in Sim 1/Sim 2 script parameters and Prelab 3 Problem 1–4 formulas.',
+        done: false
+      },
+      {
+        id: 'T-05',
+        day: '2026-10-30',
+        code: 'T-05',
+        course: 'WES 268A',
+        category: 'WRITEUP',
+        hours: 2.0,
+        title: 'Lab 2 Report Full Draft (Parts 1, 2, 3 & 4)',
+        desc: 'Compile full Lab 2 Report: Part 1 Passband Noise math & 1-sided vs 2-sided explanation, Part 2 Raised Cosine beta=0.5, Part 3 PRBS + 9 PNCorrelation plots, Part 4 7 Eye screenshots + LPF (250k, 125k, 62.5k).',
+        done: false
+      },
+      {
+        id: 'T-06',
+        day: '2026-10-30',
+        code: 'T-06',
+        course: 'WES 237C',
+        category: 'CODE',
+        hours: 1.0,
+        title: 'Project 3: dft256_optimized2 & optimized3 Implementation',
+        desc: 'Separate input/output buffers (out-of-place) to avoid copy overhead and implement loop unrolling + cyclic/block array partitioning on dft256.',
+        done: false
+      },
+      {
+        id: 'T-07',
+        day: '2026-10-31',
+        code: 'T-07',
+        course: 'WES 237C',
+        category: 'CODE',
+        hours: 3.5,
+        title: 'Weekend Deep Work: dft256_dataflow & dft1024_best Scaling',
+        desc: 'Complete dft256 Design Space Exploration table (Latency/II vs BRAM, DSP48E1, LUT, FF), then scale to dft1024_best (SIZE=1024, coefficients1024.h) with #pragma HLS dataflow at 10ns clock.',
+        done: false
+      },
+      {
+        id: 'T-08',
+        day: '2026-10-31',
+        code: 'T-08',
+        course: 'WES 268A',
+        category: 'WRITEUP',
+        hours: 1.5,
+        title: 'Prelab 3 Theory: Complete Write-Up of Problems 1–4 (+ Extra Credit 3c)',
+        desc: 'Finalize Prob 1 (BPSK phase error + Gaussian sigma=10,20,30 deg numerical integration vs Fig 4.11a), Prob 2 (N=9 timing offset loss & BER), Prob 3 (ML phase + EC 3c), and Prob 4 (Gardner proof).',
+        done: false
+      },
+      {
+        id: 'T-09',
+        day: '2026-11-01',
+        code: 'T-09',
+        course: 'WES 268A',
+        category: 'CODE',
+        hours: 5.0,
+        title: 'Weekend Deep Work: Prelab 3 MATLAB Sim 1 (Complete) & Sim 2 (Exp 1a, 1b, 1c)',
+        desc: 'Sim 1 (2h): Finalize matched filter y(n), r_ds(m) plot, 65% threshold m1/m2, and 12-char ASCII decode. Sim 2 (3h): Standard PLL (Exp 1a) & Costas Loop (Exp 1b) for delta_f=2,20,40Hz with 2 Data Cursors each + Exp 1c Extra Credit.',
+        done: false
+      },
+      {
+        id: 'L-3',
+        day: '2026-11-03',
+        code: 'L-3',
+        course: 'WES 268A',
+        category: 'LUNCH',
+        hours: 0.5,
+        title: 'Lunch Reading: Collins Ch. 6, Ch. 7 & Sec. 8.1–8.2 + Gardner (1993)',
+        desc: 'Read Collins pp. 191–241 (Timing, Carrier & Frame Sync) and Gardner Interpolation Part I & II (1993) to ground simulation commentary.',
+        done: false
+      },
+      {
+        id: 'T-10',
+        day: '2026-11-03',
+        code: 'T-10',
+        course: 'WES 237C',
+        category: 'WRITEUP',
+        hours: 3.0,
+        title: 'Project 3 Final Synthesis Logs & Architecture Report Draft (95% Done)',
+        desc: 'Export final .rpt and .xml synthesis files for dft256 & dft1024_best, draw architecture block diagrams, plot Pareto Latency-vs-Resource curves, and prep final check-off for Wed 6 PM OH.',
+        done: false
+      },
+      {
+        id: 'OH-3',
+        day: '2026-11-04',
+        code: 'OH-3',
+        course: 'WES 237C',
+        category: 'OH',
+        hours: 1.0,
+        title: 'WES 237C Office Hours #2 (6:00–7:00 PM — Final Check-Off)',
+        desc: 'Sanity-check final dft1024_best throughput/resource numbers, directory structure, and architecture report diagrams with TA/instructor.',
+        done: false
+      },
+      {
+        id: 'T-11',
+        day: '2026-11-04',
+        code: 'T-11',
+        course: 'WES 237C',
+        category: 'WRITEUP',
+        hours: 1.0,
+        title: '🎯 24h EARLY COMPLETION: Finalize & Stage WES 237C Project 3 (DFT)',
+        desc: 'Apply any final polish from 6 PM Office Hours, verify golden testbench PASS and .rpt/.xml package, and submit 24 hours ahead of Thu Nov 5 23:59 deadline!',
+        done: false
+      },
+      {
+        id: 'T-12',
+        day: '2026-11-04',
+        code: 'T-12',
+        course: 'WES 268A',
+        category: 'WRITEUP',
+        hours: 1.0,
+        title: 'Pre-OH #2 Assembly of Lab 2 Report & Prelab 3 Draft PDFs (95% Done)',
+        desc: 'Assemble complete draft PDFs of Lab 2 Report and Prelab 3 so everything is ready for visual verification at tomorrow\'s 6 PM WES 268A Office Hours.',
+        done: false
+      },
+      {
+        id: 'L-4',
+        day: '2026-11-05',
+        code: 'L-4',
+        course: 'WES 268A',
+        category: 'LUNCH',
+        hours: 0.5,
+        title: 'Lunch Reading: Collins Sec. 4.3 & 4.6 + Timing Recovery Notes Check',
+        desc: 'Review Collins pp. 141–148, 154–160 (Optimal ML Detection) & Canvas ParameterEstimation Timing Recovery notes; confirm WES 237C submission receipt.',
+        done: false
+      },
+      {
+        id: 'OH-4',
+        day: '2026-11-05',
+        code: 'OH-4',
+        course: 'WES 268A',
+        category: 'OH',
+        hours: 1.0,
+        title: 'WES 268A Office Hours #2 (6:00–7:00 PM — Final Check-Off)',
+        desc: 'Verify completed Lab 2 Report (4 parts + 7 eye screenshots) and Prelab 3 (Problems 1–4, Sim 1 decoded ASCII string, Sim 2 dual Data Cursor plots, and Extra Credit) with TA.',
+        done: false
+      },
+      {
+        id: 'T-13',
+        day: '2026-11-05',
+        code: 'T-13',
+        course: 'WES 268A',
+        category: 'WRITEUP',
+        hours: 2.0,
+        title: '🎯 24h EARLY COMPLETION: Finalize WES 268A Lab 2 Report & Prelab 3',
+        desc: 'Incorporate final 6 PM OH check-off notes, export final Lab2_Report.pdf and Prelab3.pdf with annotated MATLAB code appendices, and submit 24h ahead of Fri Nov 6 23:59 deadline!',
+        done: false
+      },
+      {
+        id: 'T-14',
+        day: '2026-11-06',
+        code: 'T-14',
+        course: 'WES 268A',
+        category: 'WRITEUP',
+        hours: 3.0,
+        title: '🛡️ 24-Hour Padding / Flex Buffer & Gradescope Page Verification',
+        desc: 'Pure 24h cushion window! Use for any spilled tasks (or if Nov 5 was your half-time Thursday), polish Extra Credit 3(c) & Exp 1(c), and verify Gradescope page assignments before 23:59.',
+        done: false
+      }
+    ];
+
+    // Quick-Reference & Verification Checklist Items (28 Granular Items)
+    const DEFAULT_CHECKLIST = [
+      // Column 1: WES 237C Project 3 (DFT)
+      { id: 'c-237-1', group: 'WES 237C: Project 3 (DFT)', title: 'Baseline 256-Point DFT (dft256_baseline)', detail: 'Nested loops over k, n in [0..255] using runtime sin()/cos() compile and pass dft_test.cpp against out.gold.dat.', done: false },
+      { id: 'c-237-2', group: 'WES 237C: Project 3 (DFT)', title: 'Twiddle Factor LUT Optimization (dft256_optimized1)', detail: 'Replace trig calls with cos_coefficients_table[(k*n) & 0xFF] and sin_coefficients_table[(k*n) & 0xFF] from coefficients256.h.', done: false },
+      { id: 'c-237-3', group: 'WES 237C: Project 3 (DFT)', title: 'Separate I/O Buffers — Out-of-Place (dft256_optimized2)', detail: 'Separate real/imag input and output arrays so reads and writes do not conflict or require temporary copy loops.', done: false },
+      { id: 'c-237-4', group: 'WES 237C: Project 3 (DFT)', title: 'Loop Pipelining & Accumulation Latency (Sec. 4.4)', detail: 'Apply #pragma HLS pipeline; address floating-point adder carry dependency (II > 1) via loop interchange or tree reduction.', done: false },
+      { id: 'c-237-5', group: 'WES 237C: Project 3 (DFT)', title: 'Array Partitioning & Loop Unrolling (dft256_optimized3)', detail: 'Pair #pragma HLS array_partition (cyclic/block factor) on sample & LUT arrays with #pragma HLS unroll to bypass 2-port BRAM limit.', done: false },
+      { id: 'c-237-6', group: 'WES 237C: Project 3 (DFT)', title: 'Dataflow / Function Pipelining (dft256_dataflow)', detail: 'Apply #pragma HLS dataflow across subfunctions using ping-pong buffers or hls::stream to overlap stages.', done: false },
+      { id: 'c-237-7', group: 'WES 237C: Project 3 (DFT)', title: '1024-Point Scaling (dft1024_best)', detail: 'Scale architecture to SIZE = 1024 (coefficients1024.h) at 10 ns clock target; verify golden testbench PASS.', done: false },
+      { id: 'c-237-8', group: 'WES 237C: Project 3 (DFT)', title: 'Architecture Report & Resource Tradeoff Table (.rpt / .xml)', detail: 'Tabulate Latency (cycles & us), II, BRAM_18K, DSP48E1, FF, and LUT across all designs; package code + reports 24h early (Wed Nov 4).', done: false },
+
+      // Column 2: WES 268A Lab 2 Report (with Student Handwritten Notes)
+      { id: 'c-lab2-1', group: 'WES 268A: Lab 2 Report', title: 'Part 1: Passband Noise Histogram & Mean Check', detail: 'Include histogram & spectrum traces (fs=500kHz, sigma=0.707, N=16, RMS avg); verify sample mean E(X_bar) is consistent with 0.', done: false },
+      { id: 'c-lab2-2', group: 'WES 268A: Lab 2 Report', title: 'Part 1: Noise Power Calculation from Spectrum (Your Notes)', detail: 'Use bin size = BW / N_FFT = 500kHz / 10000 = 50 Hz; convert dBm to Watts via P_W = 10^(P_dBm/10) * 10^-3 and sum/multiply across bins.', done: false },
+      { id: 'c-lab2-3', group: 'WES 268A: Lab 2 Report', title: 'Part 1: In-Phase (Middle Graph) & 2-Sided vs 1-Sided Spectrum', detail: 'Repeat power calculation for I-component; explain why complex baseband (I+jQ) needs a 2-sided spectrum while real signals are conjugate-symmetric (1-sided).', done: false },
+      { id: 'c-lab2-4', group: 'WES 268A: Lab 2 Report', title: 'Part 2: Up-Sampling & Raised Cosine Pulse Shaping (beta = 0.5)', detail: 'Include baseband waveform & spectrum screenshots for beta=0.5 (N=8, sigma=0.1); explain why occupied BW = (1+beta)/(2*T_sym) increases as beta increases.', done: false },
+      { id: 'c-lab2-5', group: 'WES 268A: Lab 2 Report', title: 'Part 3: PRBS (M=5, 31-bit) DC Component & Fourier Series', detail: 'Include PRBS spectrum; measure DC spike A_0 at f=0 Hz; explain why periodic M-sequence admits a discrete Fourier series line spectrum.', done: false },
+      { id: 'c-lab2-6', group: 'WES 268A: Lab 2 Report', title: 'Part 3: Spectral Line Spacing & First Sinc Null (63.087 kHz)', detail: 'Relate measured null (63.087 kHz) to theoretical f_sym = fs/N = 62.5 kHz, and line spacing delta_f = fs / (N*(2^M - 1)) = 2.016 kHz.', done: false },
+      { id: 'c-lab2-7', group: 'WES 268A: Lab 2 Report', title: 'Part 3.1: 9 Autocorrelation Screenshots (PNCorrelation.vi)', detail: 'Include all 9 plots (MLS, Ones, Random across sigma = 0.5, 1, 2); explain why MLS sharp correlation peak is ideal for packet frame sync headers.', done: false },
+      { id: 'c-lab2-8', group: 'WES 268A: Lab 2 Report', title: 'Part 4 & 4.1: All 7 Eye Pattern Screenshots & Zeta Table', detail: 'Include 1 plot (beta=1) + 3 plots (beta=0.5, 0, unfiltered) + 3 Butterworth LPF plots (200%=250kHz, 100%=125kHz, 50%=62.5kHz); compare optimal zeta = (s1-s0)/(sigma1+sigma0) and timing sensitivity.', done: false },
+
+      // Column 3: WES 268A Prelab 3 (Theory + MATLAB Sims)
+      { id: 'c-pre3-1', group: 'WES 268A: Prelab 3 (Gradescope)', title: 'Problem 1(a–b): BPSK Phase Offset Test Statistics & Conditional BER', detail: 'Derive y1(T), y0(T) with phase error theta and prove p_e|theta = 0.5 * erfc(sqrt(Eb/N0) * cos(theta)).', done: false },
+      { id: 'c-pre3-2', group: 'WES 268A: Prelab 3 (Gradescope)', title: 'Problem 1(c): Numerical Integration for Gaussian Phase Noise', detail: 'Numerically integrate unconditioned BER for sigma_theta = 10, 20, 30 deg; plot and compare error floor against Papen Fig. 4.11a (p. 127).', done: false },
+      { id: 'c-pre3-3', group: 'WES 268A: Prelab 3 (Gradescope)', title: 'Problem 2(a–c): Timing Recovery Offset by 1 Sample (N=9)', detail: 'Compute energy loss at t = T +/- T/9 for (a) rectangular pulse ((8/9)^2 = 79.0% retained, 21.0% lost) and (b) raised cosine (beta=0.5); compute new BER from baseline 10^-9.', done: false },
+      { id: 'c-pre3-4', group: 'WES 268A: Prelab 3 (Gradescope)', title: 'Problem 3(a–c): ML Carrier Phase Estimator (+ Extra Credit)', detail: 'Write K-sample Gaussian likelihood L(theta; x), describe solving for theta_hat_ML = atan(sum(Im)/sum(Re)), and compare to continuous Eq. (5.2.2) in Papen p. 141.', done: false },
+      { id: 'c-pre3-5', group: 'WES 268A: Prelab 3 (Gradescope)', title: 'Problem 4: Gardner TED Phase-Insensitivity Algebraic Proof', detail: 'Substitute x_I, x_Q with phase rotation delta_theta into u_l(t) (Papen Sec. 5.2.3, p. 148) and show cross-terms cancel via cos^2 + sin^2 = 1.', done: false },
+      { id: 'c-pre3-6', group: 'WES 268A: Prelab 3 (Gradescope)', title: 'Simulation 1(a–c): Matched Filter & Cross-Correlation (msg.mat)', detail: 'Plot Re{x(n)}, Im{x(n)}; filter Re{x(n)} with N=8 rectangular matched filter h(n); downsample at optimal n_opt in [1..8]; plot r_ds(m) using correlate.m.', done: false },
+      { id: 'c-pre3-7', group: 'WES 268A: Prelab 3 (Gradescope)', title: 'Simulation 1(d–f): 65% Peak Threshold & 12-Char ASCII Decode', detail: 'Locate header start m1 and footer start m2 at eta=65% of peak; strip 31-bit sync header/footer; decode 96 payload bits (8-bit ASCII, leftmost bit = LSB) into 12 characters.', done: false },
+      { id: 'c-pre3-8', group: 'WES 268A: Prelab 3 (Gradescope)', title: 'Simulation 2(a–e): Discrete PLL Implementation & Step Verification', detail: 'Implement Phase Rotator, Comparator, PI Loop Filter (fs=2000Hz, fn=10Hz, zeta=1/sqrt(2), Kt=4*pi*zeta*fn, Ka=pi*fn/zeta) & NCO; verify f_o(n)/(2*pi) step response.', done: false },
+      { id: 'c-pre3-9', group: 'WES 268A: Prelab 3 (Gradescope)', title: 'Sim 2 Exp 1(a): Standard PLL Pull-In Plots (2, 20, 40 Hz)', detail: 'Generate 3 figures (delta_f = 2, 20, 40 Hz) with TWO MATLAB Data Cursors per curve (step start n0=200 & +/-0.5% settling); record frequency and phase pull-in times.', done: false },
+      { id: 'c-pre3-10', group: 'WES 268A: Prelab 3 (Gradescope)', title: 'Sim 2 Exp 1(b): Costas Loop Pull-In Plots (2, 20, 40 Hz)', detail: 'Modify phase detector to e(n) = s_I(n)*s_Q(n); generate 3 figures with dual Data Cursors for delta_f = 2, 20, 40 Hz and compare pull-in behavior vs Standard PLL.', done: false },
+      { id: 'c-pre3-11', group: 'WES 268A: Prelab 3 (Gradescope)', title: 'Sim 2 Exp 1(c) (Extra Credit): BPSK Data + AWGN PLL Comparison', detail: 'Simulate Standard vs Costas PLL with BPSK data (N=8) + AWGN (sigma_I=sigma_Q=0.05) at delta_f=20 Hz; plot s_I(n) time series for both and explain why Costas locks while Standard fails on data flips.', done: false },
+      { id: 'c-pre3-12', group: 'WES 268A: Prelab 3 (Gradescope)', title: 'Gradescope Submission Formatting & Code Appendix', detail: 'Attach all annotated MATLAB scripts and plots; verify Gradescope page-to-question mapping 24h early (Thu Nov 5).', done: false }
+    ];
+
+    // Office Hours Sessions Data
+    const OH_SESSIONS = [
+      {
+        id: 'oh-wed-1',
+        course: 'WES 237C',
+        title: 'WES 237C Office Hours #1 — Early Architecture & Pragma Check',
+        when: 'Wednesday, Oct 28 • 6:00 – 7:00 PM',
+        badge: 'Week 1 • Front-Loaded Prep',
+        prepTarget: 'Complete dft256_baseline, LUT swap (optimized1), and 1 pipeline/partition trial on Tue Oct 27.',
+        questions: [
+          'In dft256, floating-point accumulation inside the inner dot-product loop causes II > 1: do you recommend loop interchange (swapping k and n loops) or an unrolled adder tree?',
+          'For #pragma HLS array_partition on cos/sin_coefficients_table and input sample arrays, what cyclic/block factor balances BRAM_18K and DSP48E1 best for our target Zynq/PYNQ board?',
+          'What is the target maximum latency (in clock cycles at 10 ns clock) for dft1024_best to receive full performance credit?',
+          'Confirm exact submission folder hierarchy and 1–2 page report diagram expectations.'
+        ]
+      },
+      {
+        id: 'oh-thu-1',
+        course: 'WES 268A',
+        title: 'WES 268A Office Hours #1 — Lab 2 Math & Prelab 3 Prototype Check',
+        when: 'Thursday, Oct 29 • 6:00 – 7:00 PM',
+        badge: 'Week 1 • Front-Loaded Prep',
+        prepTarget: 'Audit Lab 2 Parts 1–4 math on Tue Oct 27 and prototype Prelab 3 Sims 1 & 2 + Prob 1–2 on Wed Oct 28.',
+        questions: [
+          'Lab 2 Part 1: Confirm noise power integration from the spectrum using bin width = 500 kHz / 10000 = 50 Hz and converting dBm to Watts via P_W = 10^(P_dBm/10) * 10^-3.',
+          'Lab 2 Part 3: Our measured first sinc null is 63.087 kHz vs theoretical f_sym = 500kHz / 8 = 62.5 kHz — is anything else needed beyond relating delta_f = fs / (N*(2^M-1)) = 2.016 kHz?',
+          'Prelab 3 Prob 2: Confirm that 1-sample timing offset at N=9 evaluates the matched filter autocorrelation at t = T +/- T/9 (giving (8/9)^2 = 79.0% energy for rectangular pulse) and scales Eb/N0 inside 0.5*erfc().',
+          'Prelab 3 Sim 1 & Sim 2: Verify optimal downsampling index n_opt in [1..8] after conv(real(x), h) and confirm whether 0.5% pull-in time in Sim 2 is measured relative to the frequency step size delta_f from sample n0=200.'
+        ]
+      },
+      {
+        id: 'oh-wed-2',
+        course: 'WES 237C',
+        title: 'WES 237C Office Hours #2 — Final dft1024_best & Report Sign-Off',
+        when: 'Wednesday, Nov 4 • 6:00 – 7:00 PM',
+        badge: 'Week 2 • 24h Before Official Due Date',
+        prepTarget: 'Finish dft1024_best synthesis and full draft of Project 3 Report on Sat Oct 31 & Tue Nov 3.',
+        questions: [
+          'Review final Pareto tradeoff table (Latency/II vs BRAM, DSP48E1, LUT, FF) across dft256_baseline, optimized1–3, dataflow, and dft1024_best.',
+          'Verify architecture block diagrams and confirm all required .cpp, .h, .rpt, and .xml files are properly packaged before submitting tonight (24h early).'
+        ]
+      },
+      {
+        id: 'oh-thu-2',
+        course: 'WES 268A',
+        title: 'WES 268A Office Hours #2 — Final Lab 2 & Prelab 3 Verification',
+        when: 'Thursday, Nov 5 • 6:00 – 7:00 PM',
+        badge: 'Week 2 • 24h Before Official Due Date',
+        prepTarget: 'Complete all Lab 2 write-up sections and Prelab 3 theory + MATLAB plots by Wed Nov 4.',
+        questions: [
+          'Quick visual check of the 6 PLL / Costas Loop plots (delta_f = 2, 20, 40 Hz) with dual MATLAB Data Cursors marking n0=200 and +/-0.5% settling.',
+          'Confirm decoded 12-character ASCII message in Sim 1 and review Extra Credit plots (Prob 3c ML phase estimator comparison & Sim 2 Exp 1c BPSK+AWGN s_I(n) traces).',
+          'Verify all 7 RX_IQHist.vi eye pattern screenshots and Butterworth LPF (250k, 125k, 62.5k) ISI comparison in Lab 2 Part 4 before submitting tonight (24h early).'
+        ]
+      }
+    ];
+
+    // Textbook & Supplemental Readings Reference Data
+    const READINGS_DATA = [
+      {
+        course: 'WES 237C',
+        topic: 'Ch. 4: Discrete Fourier Transform (DFT)',
+        source: 'Parallel Programming for FPGAs (Kastner, Matai, Neuendorffer)',
+        pages: 'Book pp. 79–100 (Sec. 4.1–4.8) + Sec. 3.3 (p. 61)',
+        slot: 'Tue, Oct 27 Lunch (L-1)',
+        linkText: 'PP4FPGAs Textbook PDF',
+        linkUrl: 'https://raw.githubusercontent.com/KastnerRG/pp4fpgas/gh-pages/main.pdf',
+        altText: 'Project 3 Spec',
+        altUrl: 'https://pp4fpgas.readthedocs.io/en/latest/project3.html'
+      },
+      {
+        course: 'WES 268A',
+        topic: 'Detection Filters & Matched Filter Autocorrelation',
+        source: 'Papen & Blahut — Digital Communication Notes (Ch. 1–3 PDF)',
+        pages: 'Sec. 3.6 (3.6.1–3.6.2): Book pp. 92–96 • PDF pp. 103–107 (Eq. 3.6.14a)',
+        slot: 'Thu, Oct 29 Lunch (L-2)',
+        linkText: 'Uploaded: Papen_ch1-3_Digital_Comm.PDF',
+        linkUrl: ''
+      },
+      {
+        course: 'WES 268A',
+        topic: 'Phase-Synchronous Demodulation & Phase Noise BER',
+        source: 'Papen & Blahut — Digital Communication Notes (Ch. 4–End PDF)',
+        pages: 'Sec. 4.1–4.3: Book pp. 107–128 • PDF pp. 1–22 (Fig. 4.11a on Book p. 127 / PDF p. 21)',
+        slot: 'Thu, Oct 29 Lunch (L-2)',
+        linkText: 'Uploaded: Papen_ch4-end_Digital_Comm.PDF',
+        linkUrl: ''
+      },
+      {
+        course: 'WES 268A',
+        topic: 'ML Carrier Phase Estimation, PLLs, Gardner TED & Frame Sync',
+        source: 'Papen & Blahut — Digital Communication Notes (Ch. 4–End PDF)',
+        pages: 'Sec. 5.1–5.4: Book pp. 139–159 • PDF pp. 33–53 (Eq. 5.2.2 on p. 141; Gardner Sec. 5.2.3 on pp. 148–149)',
+        slot: 'Thu, Oct 29 Lunch (L-2)',
+        linkText: 'Uploaded: Papen_ch4-end_Digital_Comm.PDF',
+        linkUrl: ''
+      },
+      {
+        course: 'WES 268A',
+        topic: 'Probability of Bit Error & Optimal ML Detection in AWGN',
+        source: 'Collins et al. — Software-Defined Radio for Engineers (Ch. 3–5 PDF)',
+        pages: 'Sec. 4.3 & 4.6 (+ 4.7): Book pp. 141–148, 154–167 • PDF pp. 55–62, 68–81',
+        slot: 'Tue, Nov 3 & Thu, Nov 5 Lunch (L-3, L-4)',
+        linkText: 'Uploaded: Collins_ch3-5_SDR.PDF',
+        linkUrl: ''
+      },
+      {
+        course: 'WES 268A',
+        topic: 'Timing Synchronization, PLLs & Gardner / Müller-Mueller TEDs',
+        source: 'Collins et al. — Software-Defined Radio for Engineers (Ch. 6–End PDF)',
+        pages: 'Chapter 6 (Sec. 6.1–6.5): Book pp. 191–212 • PDF pp. 1–22',
+        slot: 'Tue, Nov 3 Lunch (L-3)',
+        linkText: 'Uploaded: Collins_ch6-end_SDR.PDF',
+        linkUrl: ''
+      },
+      {
+        course: 'WES 268A',
+        topic: 'Carrier Synchronization, Costas Loop, Loop Filters & DDS/NCO',
+        source: 'Collins et al. — Software-Defined Radio for Engineers (Ch. 6–End PDF)',
+        pages: 'Chapter 7 (Sec. 7.1–7.3): Book pp. 213–230 • PDF pp. 23–40',
+        slot: 'Tue, Nov 3 Lunch (L-3)',
+        linkText: 'Uploaded: Collins_ch6-end_SDR.PDF',
+        linkUrl: ''
+      },
+      {
+        course: 'WES 268A',
+        topic: 'Frame Synchronization, Barker Codes & Cross-Correlation',
+        source: 'Collins et al. — Software-Defined Radio for Engineers (Ch. 6–End PDF)',
+        pages: 'Chapter 8 (Sec. 8.1–8.2): Book pp. 231–241 • PDF pp. 41–51',
+        slot: 'Tue, Nov 3 Lunch (L-3)',
+        linkText: 'Uploaded: Collins_ch6-end_SDR.PDF',
+        linkUrl: ''
+      },
+      {
+        course: 'WES 268A (Supplemental)',
+        topic: 'Original IEEE Reference on the Gardner Timing-Error Detector',
+        source: 'F. M. Gardner, IEEE Trans. Commun., Vol. 34, No. 5, pp. 423–429 (May 1986)',
+        pages: 'Full Paper (7 pages) — Prelab 3 Problem 4 Reference',
+        slot: 'Thu, Oct 29 Lunch (L-2)',
+        linkText: 'Gardner (1986) IEEE Paper',
+        linkUrl: 'https://www.semanticscholar.org/paper/A-BPSK-QPSK-Timing-Error-Detector-for-Sampled-Gardner/03ff3e1d88a415f17431b800cd5f647bca0af8b2'
+      },
+      {
+        course: 'WES 268A (Supplemental)',
+        topic: 'Interpolation in Digital Modems — Part I & Part II',
+        source: 'F. M. Gardner; L. Erup, F. M. Gardner & R. A. Harris, IEEE Trans. Commun. (Mar & Jun 1993)',
+        pages: 'Part I: Vol. 41, No. 3 • Part II: Vol. 41, No. 6 — Prelab 3 Timing Recovery Reference',
+        slot: 'Tue, Nov 3 Lunch (L-3)',
+        linkText: 'Part I (1993)',
+        linkUrl: 'https://www.semanticscholar.org/paper/Interpolation-in-Digital-Modems-Part-I%3A-Gardner/3a579fc23eb3bde4cad561818ecdfbb4fee10e46',
+        altText: 'Part II PDF (1993)',
+        altUrl: 'https://ieeexplore.ieee.org/iel1/26/5993/00231921.pdf'
+      }
+    ];
+
+    // App State
+    let state = {
+      activeTab: 'board',
+      courseFilter: 'ALL',
+      halfThuIndex: 1, // 1 = Oct 29 is half-Thu (1.5h eve), 2 = Nov 5 is half-Thu (1.5h eve)
+      tasks: JSON.parse(JSON.stringify(DEFAULT_TASKS)),
+      checklist: JSON.parse(JSON.stringify(DEFAULT_CHECKLIST)),
+      ohNotes: {
+        'oh-wed-1': '',
+        'oh-thu-1': '',
+        'oh-wed-2': '',
+        'oh-thu-2': ''
+      },
+      ohChecks: {}
+    };
+
+    // Initialize from localStorage if available
+    const saved = loadStorage();
+    if (saved && saved.tasks && saved.checklist) {
+      state.halfThuIndex = saved.halfThuIndex || 1;
+      state.tasks = saved.tasks;
+      state.checklist = saved.checklist;
+      state.ohNotes = saved.ohNotes || state.ohNotes;
+      state.ohChecks = saved.ohChecks || {};
+    }
+
+    function persist() {
+      saveStorage(state);
+      updateKPIs();
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      const m = document.getElementById('toastMsg');
+      if (!t || !m) return;
+      m.textContent = msg;
+      t.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
+        t.classList.add('hidden');
+      }, 2400);
+    }
+
+    // Calculate total capacity of a given day based on halfThuIndex
+    function getDayCapacity(dayObj) {
+      if (dayObj.isMonday) return 0.0;
+      const lunchHrs = dayObj.hasLunch ? 0.5 : 0.0;
+      if (dayObj.isThu) {
+        const eve = (dayObj.thuIndex === state.halfThuIndex) ? 1.5 : 3.0;
+        return lunchHrs + eve;
+      }
+      return lunchHrs + dayObj.baseEvening;
+    }
+
+    function getDayCapBreakdown(dayObj) {
+      if (dayObj.isMonday) return '0.0h (No Mondays)';
+      if (dayObj.isThu) {
+        const isHalf = (dayObj.thuIndex === state.halfThuIndex);
+        return isHalf ? '0.5h Lunch + 1.5h Half-Thu = 2.0h' : '0.5h Lunch + 3.0h Full-Thu = 3.5h';
+      }
+      if (dayObj.hasLunch) {
+        return `0.5h Lunch + ${dayObj.baseEvening.toFixed(1)}h Eve = ${(dayObj.baseEvening + 0.5).toFixed(1)}h`;
+      }
+      return `${dayObj.baseEvening.toFixed(1)}h Focus`;
+    }
+
+    // Toggle which Thursday is half-time
+    function toggleHalfThursday() {
+      state.halfThuIndex = state.halfThuIndex === 1 ? 2 : 1;
+      persist();
+      renderBoard();
+      showToast(state.halfThuIndex === 1
+        ? 'Set Thu, Oct 29 as Half-Time (1.5h eve) & Thu, Nov 5 as Full (3.0h eve)'
+        : 'Set Thu, Nov 5 as Half-Time (1.5h eve) & Thu, Oct 29 as Full (3.0h eve)');
+    }
+
+    // Switch top-level tabs
+    function switchTab(tabName) {
+      state.activeTab = tabName;
+      ['board', 'checklist', 'officehours', 'readings'].forEach(t => {
+        const el = document.getElementById('tab-' + t);
+        const btn = document.getElementById('tab-btn-' + t);
+        if (el) {
+          if (t === tabName) el.classList.remove('hidden');
+          else el.classList.add('hidden');
+        }
+        if (btn) {
+          if (t === tabName) {
+            btn.className = 'tab-btn px-4 py-2.5 text-xs sm:text-sm font-semibold border-b-2 border-indigo-400 text-white flex items-center gap-2 whitespace-nowrap transition';
+          } else {
+            btn.className = 'tab-btn px-4 py-2.5 text-xs sm:text-sm font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 flex items-center gap-2 whitespace-nowrap transition';
+          }
+        }
+      });
+      lucide.createIcons();
+    }
+
+    // Filter tasks on board
+    function setCourseFilter(filter) {
+      state.courseFilter = filter;
+      ['ALL', 'WES 237C', 'WES 268A', 'OH', 'LUNCH'].forEach(f => {
+        const btn = document.getElementById('filter-' + f);
+        if (!btn) return;
+        if (f === filter) {
+          btn.className = 'filter-chip px-3 py-1 rounded-lg text-xs font-semibold bg-slate-900 text-white shadow-xs transition';
+        } else {
+          btn.className = 'filter-chip px-3 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700 hover:bg-slate-200 transition';
+        }
+      });
+      renderBoard();
+    }
+
+    function taskMatchesFilter(task) {
+      if (state.courseFilter === 'ALL') return true;
+      if (state.courseFilter === 'OH') return task.category === 'OH';
+      if (state.courseFilter === 'LUNCH') return task.category === 'LUNCH';
+      return task.course === state.courseFilter;
+    }
+
+    // Update KPI strip
+    function updateKPIs() {
+      const thuLabel = document.getElementById('thuModeLabel');
+      if (thuLabel) {
+        thuLabel.textContent = state.halfThuIndex === 1
+          ? 'Half-Thu: Oct 29 (2.0h tot)'
+          : 'Half-Thu: Nov 5 (2.0h tot)';
+      }
+
+      // WES 237C progress
+      const tasks237 = state.tasks.filter(t => t.course === 'WES 237C');
+      const total237 = tasks237.reduce((s, t) => s + Number(t.hours), 0);
+      const done237 = tasks237.filter(t => t.done).reduce((s, t) => s + Number(t.hours), 0);
+      const pct237 = total237 > 0 ? Math.round((done237 / total237) * 100) : 0;
+      document.getElementById('kpi237cPct').textContent = pct237 + '%';
+      document.getElementById('kpi237cHrs').textContent = `${done237.toFixed(1)} / ${total237.toFixed(1)}h`;
+
+      // WES 268A progress
+      const tasks268 = state.tasks.filter(t => t.course === 'WES 268A');
+      const total268 = tasks268.reduce((s, t) => s + Number(t.hours), 0);
+      const done268 = tasks268.filter(t => t.done).reduce((s, t) => s + Number(t.hours), 0);
+      const pct268 = total268 > 0 ? Math.round((done268 / total268) * 100) : 0;
+      document.getElementById('kpi268aPct').textContent = pct268 + '%';
+      document.getElementById('kpi268aHrs').textContent = `${done268.toFixed(1)} / ${total268.toFixed(1)}h`;
+
+      // Capacity check (excluding Fri Nov 6 buffer day or across all days)
+      const activeDays = BASE_DAYS.filter(d => d.id !== '2026-11-06');
+      const totalCap = activeDays.reduce((s, d) => s + getDayCapacity(d), 0);
+      const totalSched = state.tasks
+        .filter(t => t.day !== '2026-11-06')
+        .reduce((s, t) => s + Number(t.hours), 0);
+
+      document.getElementById('kpiTotalScheduled').textContent = totalSched.toFixed(1) + 'h';
+      document.getElementById('kpiTotalCap').textContent = totalCap.toFixed(1) + 'h';
+
+      // Check overloaded days
+      let overloadedCount = 0;
+      BASE_DAYS.forEach(d => {
+        const cap = getDayCapacity(d);
+        const used = state.tasks.filter(t => t.day === d.id).reduce((s, t) => s + Number(t.hours), 0);
+        if (used > cap + 0.01) overloadedCount++;
+      });
+
+      const badge = document.getElementById('kpiOverloadBadge');
+      if (overloadedCount === 0) {
+        badge.className = 'px-2.5 py-1 rounded-md text-xs font-semibold bg-emerald-100 text-emerald-800';
+        badge.textContent = '✓ All Days Within Cap';
+      } else {
+        badge.className = 'px-2.5 py-1 rounded-md text-xs font-semibold bg-amber-100 text-amber-800';
+        badge.textContent = `${overloadedCount} Day${overloadedCount > 1 ? 's' : ''} Over Cap`;
+      }
+
+      // Lunch & Total Tasks Done
+      const lunchTasks = state.tasks.filter(t => t.category === 'LUNCH');
+      const lunchDone = lunchTasks.filter(t => t.done).length;
+      document.getElementById('kpiLunchCount').textContent = `${lunchDone}/${lunchTasks.length}`;
+
+      const doneCount = state.tasks.filter(t => t.done).length;
+      document.getElementById('kpiCompletedTasks').textContent = `${doneCount}/${state.tasks.length}`;
+
+      // Checklist badge
+      const chkDone = state.checklist.filter(c => c.done).length;
+      const chkBadge = document.getElementById('checklistProgressBadge');
+      if (chkBadge) chkBadge.textContent = `${chkDone}/${state.checklist.length}`;
+    }
+
+    // Drag and Drop Handlers
+    let draggedTaskId = null;
+
+    function handleDragStart(e, taskId) {
+      draggedTaskId = taskId;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', taskId);
+      setTimeout(() => {
+        const el = document.getElementById('task-card-' + taskId);
+        if (el) el.classList.add('dragging');
+      }, 10);
+    }
+
+    function handleDragEnd(e, taskId) {
+      const el = document.getElementById('task-card-' + taskId);
+      if (el) el.classList.remove('dragging');
+      document.querySelectorAll('.day-column').forEach(col => col.classList.remove('drag-over'));
+      draggedTaskId = null;
+    }
+
+    function handleDragOver(e, dayId) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const col = document.getElementById('day-col-' + dayId);
+      if (col && !col.classList.contains('drag-over')) {
+        col.classList.add('drag-over');
+      }
+    }
+
+    function handleDragLeave(e, dayId) {
+      const col = document.getElementById('day-col-' + dayId);
+      if (col) col.classList.remove('drag-over');
+    }
+
+    function handleDrop(e, targetDayId) {
+      e.preventDefault();
+      const col = document.getElementById('day-col-' + targetDayId);
+      if (col) col.classList.remove('drag-over');
+      const taskId = draggedTaskId || e.dataTransfer.getData('text/plain');
+      if (!taskId) return;
+      moveTaskToDay(taskId, targetDayId);
+    }
+
+    function moveTaskToDay(taskId, targetDayId) {
+      const task = state.tasks.find(t => t.id === taskId);
+      if (!task) return;
+      const targetDay = BASE_DAYS.find(d => d.id === targetDayId);
+      if (!targetDay) return;
+      task.day = targetDayId;
+      persist();
+      renderBoard();
+      showToast(`Moved "${task.code}" to ${targetDay.label}`);
+    }
+
+    function shiftTaskDay(taskId, delta) {
+      const task = state.tasks.find(t => t.id === taskId);
+      if (!task) return;
+      const idx = BASE_DAYS.findIndex(d => d.id === task.day);
+      if (idx === -1) return;
+      let nextIdx = idx + delta;
+      // Skip Mondays automatically when using quick arrows unless at boundary
+      if (nextIdx >= 0 && nextIdx < BASE_DAYS.length && BASE_DAYS[nextIdx].isMonday) {
+        nextIdx += delta;
+      }
+      if (nextIdx < 0 || nextIdx >= BASE_DAYS.length) {
+        showToast('Reached boundary of study schedule window');
+        return;
+      }
+      moveTaskToDay(taskId, BASE_DAYS[nextIdx].id);
+    }
+
+    function toggleTaskDone(taskId) {
+      const task = state.tasks.find(t => t.id === taskId);
+      if (!task) return;
+      task.done = !task.done;
+      persist();
+      renderBoard();
+      showToast(task.done ? `Completed ${task.code}: ${task.title}` : `Reopened ${task.code}`);
+    }
+
+    function adjustTaskHours(taskId, delta) {
+      const task = state.tasks.find(t => t.id === taskId);
+      if (!task) return;
+      const next = Math.max(0.25, Math.min(5.0, Number(task.hours) + delta));
+      task.hours = next;
+      persist();
+      renderBoard();
+    }
+
+    function deleteTask(taskId) {
+      state.tasks = state.tasks.filter(t => t.id !== taskId);
+      persist();
+      renderBoard();
+      showToast('Removed task from board');
+    }
+
+    // Auto-Rebalance Overloaded Days
+    function autoRebalance() {
+      let movedCount = 0;
+      BASE_DAYS.forEach((day, dIdx) => {
+        const cap = getDayCapacity(day);
+        let dayTasks = state.tasks.filter(t => t.day === day.id);
+        let used = dayTasks.reduce((s, t) => s + Number(t.hours), 0);
+
+        // If day is overloaded, move movable non-OH tasks to next available day with slack before deadline
+        if (used > cap + 0.01) {
+          const movable = dayTasks.filter(t => t.category !== 'OH' && !t.done).reverse();
+          for (const task of movable) {
+            if (used <= cap + 0.01) break;
+            // Determine latest allowed day based on 24h padding target
+            const maxDayId = task.course === 'WES 237C' ? '2026-11-04' : '2026-11-06';
+            for (let nextIdx = 1; nextIdx < BASE_DAYS.length; nextIdx++) {
+              const candDay = BASE_DAYS[nextIdx];
+              if (candDay.isMonday || candDay.id > maxDayId || candDay.id === day.id) continue;
+              const candCap = getDayCapacity(candDay);
+              const candUsed = state.tasks.filter(t => t.day === candDay.id).reduce((s, t) => s + Number(t.hours), 0);
+              if (candUsed + Number(task.hours) <= candCap + 0.01) {
+                task.day = candDay.id;
+                used -= Number(task.hours);
+                movedCount++;
+                break;
+              }
+            }
+          }
+        }
+      });
+
+      persist();
+      renderBoard();
+      if (movedCount > 0) {
+        showToast(`Auto-balanced ${movedCount} task${movedCount > 1 ? 's' : ''} into open study windows`);
+      } else {
+        showToast('Schedule is already balanced within daily capacity');
+      }
+    }
+
+    // Render Drag & Drop Board
+    function renderBoard() {
+      const grid = document.getElementById('daysGrid');
+      if (!grid) return;
+
+      grid.innerHTML = BASE_DAYS.map(day => {
+        const cap = getDayCapacity(day);
+        const allDayTasks = state.tasks.filter(t => t.day === day.id);
+        const visibleTasks = allDayTasks.filter(taskMatchesFilter);
+        const used = allDayTasks.reduce((s, t) => s + Number(t.hours), 0);
+        const isOver = used > cap + 0.01;
+        const pct = cap > 0 ? Math.min(100, Math.round((used / cap) * 100)) : (used > 0 ? 100 : 0);
+
+        let barColor = 'bg-indigo-600';
+        if (day.isMonday && used === 0) barColor = 'bg-slate-300';
+        else if (isOver) barColor = 'bg-rose-500';
+        else if (used === cap && cap > 0) barColor = 'bg-emerald-500';
+
+        const headerBg = day.isMonday
+          ? 'bg-slate-100 border-slate-200'
+          : (day.id === '2026-11-04' || day.id === '2026-11-05')
+            ? 'bg-indigo-950 text-white border-indigo-900'
+            : 'bg-slate-900 text-white border-slate-800';
+
+        const milestoneHtml = day.milestone
+          ? `<div class="px-3 py-1.5 text-[11px] font-semibold border-b flex items-center gap-1.5 ${
+              day.id === '2026-11-04' || day.id === '2026-11-05'
+                ? 'bg-amber-50 text-amber-900 border-amber-200'
+                : 'bg-indigo-50/80 text-indigo-900 border-indigo-100'
+            }">
+              <span>${day.milestone}</span>
+            </div>`
+          : '';
+
+        const tasksHtml = visibleTasks.length === 0
+          ? `<div class="py-6 px-3 text-center border border-dashed border-slate-200 rounded-xl text-xs text-slate-400">
+               ${day.isMonday ? 'Rest Day — No Mondays Scheduled (Drop here only if needed)' : 'No matching tasks — drag a card here'}
+             </div>`
+          : visibleTasks.map(task => {
+              const is237 = task.course === 'WES 237C';
+              const isOH = task.category === 'OH';
+              const isLunch = task.category === 'LUNCH';
+
+              let pillClass = is237
+                ? 'bg-indigo-100 text-indigo-800 border-indigo-200'
+                : 'bg-teal-100 text-teal-800 border-teal-200';
+              let catBadge = '';
+              if (isOH) {
+                catBadge = '<span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-800 border border-amber-200">🏛️ 6–7 PM OH</span>';
+              } else if (isLunch) {
+                catBadge = '<span class="px-1.5 py-0.5 text-[10px] font-bold rounded bg-sky-100 text-sky-800 border border-sky-200">🥪 30m Lunch</span>';
+              }
+
+              const dayOptions = BASE_DAYS.map(d =>
+                `<option value="${d.id}" ${d.id === task.day ? 'selected' : ''}>${d.short}</option>`
+              ).join('');
+
+              return `
+                <div id="task-card-${task.id}"
+                     draggable="true"
+                     ondragstart="handleDragStart(event, '${task.id}')"
+                     ondragend="handleDragEnd(event, '${task.id}')"
+                     class="task-card p-3 rounded-xl border ${
+                       task.done
+                         ? 'bg-slate-50/90 border-slate-200 opacity-70'
+                         : isOH
+                           ? 'bg-amber-50/40 border-amber-200/90'
+                           : 'bg-white border-slate-200'
+                     } shadow-2xs space-y-2 cursor-grab active:cursor-grabbing">
+
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="flex items-center gap-1.5 flex-wrap">
+                      <input type="checkbox" ${task.done ? 'checked' : ''}
+                             onchange="toggleTaskDone('${task.id}')"
+                             class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" />
+                      <span class="text-[11px] font-bold mono px-1.5 py-0.5 rounded border ${pillClass}">${task.course} • ${task.code}</span>
+                      ${catBadge}
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <button onclick="adjustTaskHours('${task.id}', -0.5)" class="w-5 h-5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center" title="Decrease by 0.5h">-</button>
+                      <span class="text-xs font-bold mono text-slate-800 px-1">${Number(task.hours).toFixed(1)}h</span>
+                      <button onclick="adjustTaskHours('${task.id}', 0.5)" class="w-5 h-5 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center" title="Increase by 0.5h">+</button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 class="text-xs font-bold text-slate-900 leading-snug ${task.done ? 'line-through text-slate-500' : ''}">${task.title}</h4>
+                    <p class="text-[11px] text-slate-600 mt-1 leading-relaxed">${task.desc}</p>
+                  </div>
+
+                  <div class="pt-2 border-t border-slate-100 flex items-center justify-between gap-1">
+                    <div class="flex items-center gap-1">
+                      <button onclick="shiftTaskDay('${task.id}', -1)" class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-slate-100 hover:bg-slate-200 text-slate-700" title="Move 1 day earlier">◀ -1d</button>
+                      <select onchange="moveTaskToDay('${task.id}', this.value)" aria-label="Move task to day" class="text-[10px] font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded px-1.5 py-0.5 border-none focus:ring-1 focus:ring-indigo-500 cursor-pointer">
+                        ${dayOptions}
+                      </select>
+                      <button onclick="shiftTaskDay('${task.id}', 1)" class="px-1.5 py-0.5 text-[10px] font-semibold rounded bg-slate-100 hover:bg-slate-200 text-slate-700" title="Move 1 day later">+1d ▶</button>
+                    </div>
+                    <button onclick="deleteTask('${task.id}')" class="text-[10px] text-slate-400 hover:text-rose-600 px-1" title="Delete task">✕</button>
+                  </div>
+                </div>
+              `;
+            }).join('');
+
+        return `
+          <div id="day-col-${day.id}"
+               ondragover="handleDragOver(event, '${day.id}')"
+               ondragleave="handleDragLeave(event, '${day.id}')"
+               ondrop="handleDrop(event, '${day.id}')"
+               class="day-column rounded-2xl border border-slate-200 bg-white shadow-xs flex flex-col overflow-hidden transition">
+
+            <!-- Day Header -->
+            <div class="px-3.5 py-2.5 border-b ${headerBg} flex items-center justify-between">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-sm font-bold ${day.isMonday ? 'text-slate-700' : 'text-white'}">${day.label}</h3>
+                  <span class="text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                    day.isMonday ? 'bg-slate-200 text-slate-600' : 'bg-white/15 text-slate-200'
+                  }">${day.badge}</span>
+                </div>
+                <p class="text-[10px] ${day.isMonday ? 'text-slate-500' : 'text-slate-300'} mt-0.5">${getDayCapBreakdown(day)}</p>
+              </div>
+              <div class="text-right">
+                <span class="text-xs font-extrabold mono px-2 py-0.5 rounded ${
+                  isOver
+                    ? 'bg-rose-500 text-white'
+                    : day.isMonday && used === 0
+                      ? 'bg-slate-200 text-slate-600'
+                      : 'bg-white/15 text-white'
+                }">${used.toFixed(1)} / ${cap.toFixed(1)}h</span>
+              </div>
+            </div>
+
+            ${milestoneHtml}
+
+            <!-- Capacity Bar -->
+            <div class="w-full h-1.5 bg-slate-100">
+              <div class="h-full ${barColor} transition-all duration-300" style="width: ${pct}%"></div>
+            </div>
+
+            <!-- Tasks List -->
+            <div class="p-3 space-y-2.5 flex-1 bg-slate-50/40">
+              ${tasksHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      updateKPIs();
+    }
+
+    // Render Quick-Reference & Verification Checklist Tab
+    function renderChecklist() {
+      const container = document.getElementById('checklistContainer');
+      if (!container) return;
+
+      const groups = [
+        {
+          name: 'WES 237C: Project 3 (DFT)',
+          subtitle: 'Target: Wed, Nov 4 (23:59) • Official Due: Thu, Nov 5',
+          accent: 'indigo',
+          headerBg: 'bg-indigo-900 text-white'
+        },
+        {
+          name: 'WES 268A: Lab 2 Report',
+          subtitle: 'Target: Thu, Nov 5 (23:59) • Includes Your Handwritten Notes',
+          accent: 'teal',
+          headerBg: 'bg-teal-900 text-white'
+        },
+        {
+          name: 'WES 268A: Prelab 3 (Gradescope)',
+          subtitle: 'Target: Thu, Nov 5 (23:59) • 4 Problems + 2 MATLAB Sims',
+          accent: 'emerald',
+          headerBg: 'bg-slate-900 text-white'
+        }
+      ];
+
+      container.innerHTML = groups.map(g => {
+        const items = state.checklist.filter(c => c.group === g.name);
+        const doneCount = items.filter(c => c.done).length;
+        const pct = items.length > 0 ? Math.round((doneCount / items.length) * 100) : 0;
+
+        const itemsHtml = items.map(item => `
+          <label class="flex items-start gap-2.5 p-2.5 rounded-xl border ${
+            item.done ? 'bg-emerald-50/40 border-emerald-200/80' : 'bg-white border-slate-200 hover:border-slate-300'
+          } cursor-pointer transition">
+            <input type="checkbox" ${item.done ? 'checked' : ''}
+                   onchange="toggleChecklistItem('${item.id}')"
+                   class="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer shrink-0" />
+            <div class="text-xs">
+              <div class="font-bold text-slate-900 ${item.done ? 'line-through text-slate-500' : ''}">${item.title}</div>
+              <p class="text-[11px] text-slate-600 mt-0.5 leading-relaxed">${item.detail}</p>
+            </div>
+          </label>
+        `).join('');
+
+        return `
+          <div class="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden flex flex-col">
+            <div class="p-3.5 ${g.headerBg} flex items-center justify-between">
+              <div>
+                <h3 class="text-sm font-bold">${g.name}</h3>
+                <p class="text-[11px] text-slate-300 mt-0.5">${g.subtitle}</p>
+              </div>
+              <span class="text-xs font-extrabold mono px-2 py-1 rounded bg-white/15">${doneCount}/${items.length} (${pct}%)</span>
+            </div>
+            <div class="p-3 space-y-2 flex-1 bg-slate-50/40">
+              ${itemsHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleChecklistItem(itemId) {
+      const item = state.checklist.find(c => c.id === itemId);
+      if (!item) return;
+      item.done = !item.done;
+      persist();
+      renderChecklist();
+    }
+
+    function checkAllChecklist(val) {
+      state.checklist.forEach(c => { c.done = val; });
+      persist();
+      renderChecklist();
+      showToast(val ? 'Marked all checklist items complete' : 'Cleared all checklist checkmarks');
+    }
+
+    function copyChecklistSummary() {
+      const doneTasks = state.tasks.filter(t => t.done).length;
+      const doneChk = state.checklist.filter(c => c.done).length;
+      const lines = [
+        `WES 237C & WES 268A Study Planner Summary (Oct 26 – Nov 6, 2026)`,
+        `• Study Tasks Completed: ${doneTasks}/${state.tasks.length}`,
+        `• Verification Checklist: ${doneChk}/${state.checklist.length}`,
+        `• Pending Checklist Items:`,
+        ...state.checklist.filter(c => !c.done).map(c => `  [ ] (${c.group}) ${c.title}`)
+      ];
+      const text = lines.join('\n');
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast('Copied progress summary to clipboard!');
+        }).catch(() => fallbackCopy(text));
+      } else {
+        fallbackCopy(text);
+      }
+    }
+
+    function fallbackCopy(text) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast('Copied progress summary to clipboard!');
+      } catch (e) {
+        showToast('Ready to copy');
+      }
+      document.body.removeChild(ta);
+    }
+
+    // Render Office Hours Tab
+    function renderOfficeHours() {
+      const container = document.getElementById('ohContainer');
+      if (!container) return;
+
+      container.innerHTML = OH_SESSIONS.map(oh => {
+        const is237 = oh.course === 'WES 237C';
+        const headerClass = is237 ? 'bg-indigo-900 text-white' : 'bg-teal-900 text-white';
+        const notesVal = state.ohNotes[oh.id] || '';
+
+        const qHtml = oh.questions.map((q, idx) => {
+          const qKey = `${oh.id}-q-${idx}`;
+          const checked = !!state.ohChecks[qKey];
+          return `
+            <label class="flex items-start gap-2 p-2 rounded-lg border ${
+              checked ? 'bg-emerald-50/50 border-emerald-200' : 'bg-white border-slate-200'
+            } text-xs cursor-pointer">
+              <input type="checkbox" ${checked ? 'checked' : ''}
+                     onchange="toggleOhQuestion('${qKey}')"
+                     class="mt-0.5 w-3.5 h-3.5 rounded border-slate-300 text-indigo-600" />
+              <span class="leading-relaxed ${checked ? 'line-through text-slate-400' : 'text-slate-700'}">${q}</span>
+            </label>
+          `;
+        }).join('');
+
+        return `
+          <div class="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden flex flex-col">
+            <div class="p-3.5 ${headerClass} flex items-center justify-between">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-white/20">${oh.course}</span>
+                  <span class="text-[11px] text-amber-300 font-semibold">${oh.when}</span>
+                </div>
+                <h3 class="text-sm font-bold mt-1">${oh.title}</h3>
+              </div>
+            </div>
+
+            <div class="p-3.5 space-y-3 flex-1 bg-slate-50/40">
+              <div class="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                <strong>Front-Loaded Prerequisite:</strong> ${oh.prepTarget}
+              </div>
+
+              <div class="space-y-1.5">
+                <div class="text-xs font-bold text-slate-700">Prepared Questions &amp; Check-Off Points:</div>
+                ${qHtml}
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">TA / Professor Answers &amp; Notes Scratchpad:</label>
+                <textarea rows="3"
+                          oninput="saveOhNote('${oh.id}', this.value)"
+                          placeholder="Jot down TA hints, pragma recommendations, or MATLAB cursor specifics during the 6–7 PM session..."
+                          class="w-full text-xs rounded-xl border border-slate-300 p-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">${notesVal}</textarea>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleOhQuestion(qKey) {
+      state.ohChecks[qKey] = !state.ohChecks[qKey];
+      persist();
+      renderOfficeHours();
+    }
+
+    function saveOhNote(ohId, val) {
+      state.ohNotes[ohId] = val;
+      persist();
+    }
+
+    // Render Textbooks & Supplemental Links Tab
+    function renderReadings() {
+      const tbody = document.getElementById('readingsTableBody');
+      if (!tbody) return;
+
+      tbody.innerHTML = READINGS_DATA.map(r => {
+        const is237 = r.course.includes('237C');
+        const badge = is237
+          ? 'bg-indigo-100 text-indigo-800 border-indigo-200'
+          : 'bg-teal-100 text-teal-800 border-teal-200';
+
+        let linkHtml = '';
+        if (r.linkUrl) {
+          linkHtml += `<a href="${r.linkUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 font-semibold text-indigo-600 hover:text-indigo-800 underline">${r.linkText} ↗</a>`;
+        } else {
+          linkHtml += `<span class="text-slate-600 font-medium">${r.linkText}</span>`;
+        }
+        if (r.altUrl) {
+          linkHtml += ` <span class="text-slate-300 mx-1">|</span> <a href="${r.altUrl}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 font-semibold text-indigo-600 hover:text-indigo-800 underline">${r.altText} ↗</a>`;
+        }
+
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="py-3 px-4 align-top">
+              <span class="inline-block text-[10px] font-bold px-2 py-0.5 rounded border ${badge}">${r.course}</span>
+              <div class="font-bold text-slate-900 mt-1">${r.topic}</div>
+            </td>
+            <td class="py-3 px-4 align-top text-slate-700 font-medium">${r.source}</td>
+            <td class="py-3 px-4 align-top text-slate-700 mono text-[11px]">${r.pages}</td>
+            <td class="py-3 px-4 align-top">
+              <span class="inline-block text-[11px] font-semibold px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200">${r.slot}</span>
+            </td>
+            <td class="py-3 px-4 align-top">${linkHtml}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Add Task Modal Controls
+    function openAddTaskModal(defaultCategory) {
+      const modal = document.getElementById('taskModal');
+      const daySel = document.getElementById('modalDay');
+      if (daySel) {
+        daySel.innerHTML = BASE_DAYS.map(d =>
+          `<option value="${d.id}" ${d.id === '2026-10-29' ? 'selected' : ''}>${d.label} (${getDayCapacity(d).toFixed(1)}h cap)</option>`
+        ).join('');
+      }
+      document.getElementById('modalTaskId').value = '';
+      document.getElementById('modalTaskTitle').value = '';
+      document.getElementById('modalTaskDesc').value = '';
+      if (defaultCategory) {
+        document.getElementById('modalCategory').value = defaultCategory;
+        document.getElementById('modalHours').value = defaultCategory === 'LUNCH' ? '0.5' : '1.0';
+      }
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeTaskModal() {
+      const modal = document.getElementById('taskModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function saveTaskFromModal(e) {
+      e.preventDefault();
+      const course = document.getElementById('modalCourse').value;
+      const category = document.getElementById('modalCategory').value;
+      const day = document.getElementById('modalDay').value;
+      const hours = parseFloat(document.getElementById('modalHours').value) || 1.0;
+      const title = document.getElementById('modalTaskTitle').value.trim();
+      const desc = document.getElementById('modalTaskDesc').value.trim();
+      if (!title) return;
+
+      const newId = 'CUST-' + Date.now().toString().slice(-4);
+      const code = category === 'LUNCH' ? `L-${state.tasks.filter(t => t.category === 'LUNCH').length + 1}` : `C-${state.tasks.length + 1}`;
+
+      state.tasks.push({
+        id: newId,
+        day,
+        code,
+        course,
+        category,
+        hours,
+        title,
+        desc: desc || 'Custom study / supplemental block.',
+        done: false
+      });
+
+      persist();
+      renderBoard();
+      closeTaskModal();
+      switchTab('board');
+      showToast(`Added "${title}" to schedule`);
+    }
+
+    // Reset Modal Controls
+    function openResetModal() {
+      const m = document.getElementById('resetModal');
+      m.classList.remove('hidden');
+      m.classList.add('flex');
+    }
+
+    function closeResetModal() {
+      const m = document.getElementById('resetModal');
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+    }
+
+    function confirmResetAll() {
+      state.halfThuIndex = 1;
+      state.tasks = JSON.parse(JSON.stringify(DEFAULT_TASKS));
+      state.checklist = JSON.parse(JSON.stringify(DEFAULT_CHECKLIST));
+      state.ohNotes = { 'oh-wed-1': '', 'oh-thu-1': '', 'oh-wed-2': '', 'oh-thu-2': '' };
+      state.ohChecks = {};
+      persist();
+      renderBoard();
+      renderChecklist();
+      renderOfficeHours();
+      closeResetModal();
+      showToast('Restored default Office-Hours-aligned study plan');
+    }
+
+    // Multi-Device Cloud Sync Logic
+    const CLOUD_CFG_KEY = 'wes237c_268a_cloud_cfg';
+    function getCloudConfig() {
+      try {
+        const raw = localStorage.getItem(CLOUD_CFG_KEY);
+        return raw ? JSON.parse(raw) : { url: '', apiKey: '', lastSync: '' };
+      } catch (e) {
+        return { url: '', apiKey: '', lastSync: '' };
+      }
+    }
+    function setCloudConfig(cfg) {
+      try {
+        localStorage.setItem(CLOUD_CFG_KEY, JSON.stringify(cfg));
+      } catch (e) {}
+      updateSyncBadge();
+    }
+
+    function updateSyncBadge() {
+      const cfg = getCloudConfig();
+      const lbl = document.getElementById('syncStatusLabel');
+      const ts = document.getElementById('lastSyncTimestamp');
+      if (lbl) {
+        lbl.textContent = cfg.url ? 'Cloud Linked ✓' : 'Cloud Sync';
+      }
+      if (ts) {
+        ts.textContent = cfg.lastSync ? `Last synced: ${cfg.lastSync}` : (cfg.url ? 'Linked (Ready)' : 'Not linked yet');
+      }
+    }
+
+    function openSyncModal() {
+      const cfg = getCloudConfig();
+      const urlInp = document.getElementById('cloudSyncUrlInput');
+      const keyInp = document.getElementById('cloudSyncKeyInput');
+      if (urlInp) urlInp.value = cfg.url || '';
+      if (keyInp) keyInp.value = cfg.apiKey || '';
+      updateSyncBadge();
+      const m = document.getElementById('syncModal');
+      if (m) {
+        m.classList.remove('hidden');
+        m.classList.add('flex');
+      }
+    }
+
+    function closeSyncModal() {
+      const m = document.getElementById('syncModal');
+      if (m) {
+        m.classList.add('hidden');
+        m.classList.remove('flex');
+      }
+    }
+
+    async function pushToCloud(silent) {
+      const cfg = getCloudConfig();
+      if (!cfg.url) return;
+      try {
+        const headers = { 'Content-Type': 'application/json' };
+        if (cfg.apiKey) {
+          headers['X-Master-Key'] = cfg.apiKey;
+        }
+        const payload = {
+          updatedAt: new Date().toISOString(),
+          halfThuIndex: state.halfThuIndex,
+          tasks: state.tasks,
+          checklist: state.checklist,
+          ohNotes: state.ohNotes,
+          ohChecks: state.ohChecks
+        };
+        const method = cfg.url.includes('npoint.io') ? 'POST' : 'PUT';
+        const res = await fetch(cfg.url, {
+          method,
+          headers,
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        cfg.lastSync = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setCloudConfig(cfg);
+        if (!silent) showToast('Pushed latest study plan to Cloud!');
+      } catch (err) {
+        if (!silent) showToast('Cloud push failed — check URL/CORS or use Sync Code');
+      }
+    }
+
+    async function pullFromCloud(silent) {
+      const urlInp = document.getElementById('cloudSyncUrlInput');
+      const keyInp = document.getElementById('cloudSyncKeyInput');
+      const cfg = getCloudConfig();
+      if (urlInp && urlInp.value.trim()) cfg.url = urlInp.value.trim();
+      if (keyInp) cfg.apiKey = keyInp.value.trim();
+      if (!cfg.url) {
+        if (!silent) showToast('Enter a Cloud JSON URL first');
+        return;
+      }
+      try {
+        const headers = {};
+        if (cfg.apiKey) headers['X-Master-Key'] = cfg.apiKey;
+        const res = await fetch(cfg.url, { method: 'GET', headers });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        const record = data.record ? data.record : data;
+        if (record && Array.isArray(record.tasks) && Array.isArray(record.checklist)) {
+          state.halfThuIndex = record.halfThuIndex || 1;
+          state.tasks = record.tasks;
+          state.checklist = record.checklist;
+          state.ohNotes = record.ohNotes || state.ohNotes;
+          state.ohChecks = record.ohChecks || {};
+          saveStorage(state);
+          cfg.lastSync = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          setCloudConfig(cfg);
+          renderBoard();
+          renderChecklist();
+          renderOfficeHours();
+          if (!silent) showToast('Pulled latest study plan from Cloud!');
+        } else {
+          if (!silent) showToast('Cloud endpoint is empty — click "Save URL & Push to Cloud" first!');
+        }
+      } catch (err) {
+        if (!silent) showToast('Could not pull from Cloud URL');
+      }
+    }
+
+    function saveCloudConfigAndPush() {
+      const urlInp = document.getElementById('cloudSyncUrlInput');
+      const keyInp = document.getElementById('cloudSyncKeyInput');
+      const url = urlInp ? urlInp.value.trim() : '';
+      const apiKey = keyInp ? keyInp.value.trim() : '';
+      if (!url) {
+        showToast('Please paste a valid Cloud URL (e.g. https://api.npoint.io/...)');
+        return;
+      }
+      setCloudConfig({ url, apiKey, lastSync: '' });
+      pushToCloud(false);
+    }
+
+    function copySyncCode() {
+      const code = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+      const box = document.getElementById('syncCodeBox');
+      if (box) box.value = code;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(() => showToast('Copied Sync Code to clipboard!')).catch(() => fallbackCopy(code));
+      } else {
+        fallbackCopy(code);
+      }
+    }
+
+    function applySyncCode() {
+      const box = document.getElementById('syncCodeBox');
+      if (!box || !box.value.trim()) {
+        showToast('Paste a Sync Code into the box first');
+        return;
+      }
+      try {
+        const parsed = JSON.parse(decodeURIComponent(escape(atob(box.value.trim()))));
+        if (parsed && Array.isArray(parsed.tasks)) {
+          state.halfThuIndex = parsed.halfThuIndex || 1;
+          state.tasks = parsed.tasks;
+          state.checklist = parsed.checklist || state.checklist;
+          state.ohNotes = parsed.ohNotes || state.ohNotes;
+          state.ohChecks = parsed.ohChecks || {};
+          persist();
+          renderBoard();
+          renderChecklist();
+          renderOfficeHours();
+          showToast('Loaded board state from Sync Code!');
+        }
+      } catch (e) {
+        showToast('Invalid Sync Code format');
+      }
+    }
+
+    function exportStateJson() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'wes_study_planner_sync.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Downloaded wes_study_planner_sync.json');
+    }
+
+    function importStateJson(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        try {
+          const parsed = JSON.parse(evt.target.result);
+          if (parsed && Array.isArray(parsed.tasks)) {
+            state.halfThuIndex = parsed.halfThuIndex || 1;
+            state.tasks = parsed.tasks;
+            state.checklist = parsed.checklist || state.checklist;
+            state.ohNotes = parsed.ohNotes || state.ohNotes;
+            state.ohChecks = parsed.ohChecks || {};
+            persist();
+            renderBoard();
+            renderChecklist();
+            renderOfficeHours();
+            closeSyncModal();
+            showToast('Imported study plan state from JSON!');
+          }
+        } catch (err) {
+          showToast('Invalid JSON file');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // Hook persist() to also auto-push if Cloud URL is configured
+    const _origPersist = persist;
+    persist = function() {
+      _origPersist();
+      clearTimeout(window.__cloudPushTimer);
+      window.__cloudPushTimer = setTimeout(() => {
+        pushToCloud(true);
+      }, 600);
+    };
+
+    // Initial Render
+    window.addEventListener('DOMContentLoaded', () => {
+      renderBoard();
+      renderChecklist();
+      renderOfficeHours();
+      renderReadings();
+      updateSyncBadge();
+      if (getCloudConfig().url) { pullFromCloud(true); }
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>
